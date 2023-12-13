@@ -5,15 +5,17 @@ import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.os.Build;
 import android.os.Bundle;
-import android.widget.Toast;
+import android.util.Log;
 
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 
 import java.util.Calendar;
 
 public class MainActivity extends AppCompatActivity {
-
     private AlarmManager alarmManager;
     private PendingIntent pendingIntent;
 
@@ -22,33 +24,45 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // 알람 매니저 인스턴스 생성
+        // 알람 매니저 생성
         alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
 
-        // 알람 설정 버튼 클릭 등의 이벤트를 받아서 알람 설정하는 메소드 호출
-        setAlarm();
+        // Broadcast Receiver 등록
+        registerReceiver(new AlarmReceiver(), new IntentFilter("ALARM_ACTION"));
+
+        // 정시 알람 설정
+        setNoonAlarm();
     }
 
-    private void setAlarm() {
+    // 정시 알람 설정
+    private void setNoonAlarm() {
         Calendar calendar = Calendar.getInstance();
         calendar.setTimeInMillis(System.currentTimeMillis());
-        // 아래에서 시간과 분을 설정합니다. 현재는 예시로 10시 0분으로 설정했습니다.
-        calendar.set(Calendar.HOUR_OF_DAY, 12);
-        calendar.set(Calendar.MINUTE, 01);
+        calendar.set(Calendar.HOUR_OF_DAY, 12); // 정시
+        calendar.set(Calendar.MINUTE, 0);
+        calendar.set(Calendar.SECOND, 0);
 
-        Intent alarmIntent = new Intent(this, AlarmReceiver.class);
-        pendingIntent = PendingIntent.getBroadcast(this, 0, alarmIntent, 0);
+        Intent intent = new Intent("ALARM_ACTION");
+        pendingIntent = PendingIntent.getBroadcast(this, 0, intent, 0);
 
-        // 알람 설정
-        alarmManager.setExact(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), pendingIntent);
-        Toast.makeText(this, "알람이 설정되었습니다.", Toast.LENGTH_SHORT).show();
+        // API Level에 따라 알람 설정 방법이 다르므로 버전에 따라 다른 방법 사용
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), pendingIntent);
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            alarmManager.setExact(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), pendingIntent);
+        } else {
+            alarmManager.set(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), pendingIntent);
+        }
+
+        Log.d("Alarm", "Noon alarm set.");
     }
 
-    public static class AlarmReceiver extends BroadcastReceiver {
+    // Broadcast Receiver 클래스 정의
+    public class AlarmReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
-            // 알람이 울릴 때 수행할 동작을 정의합니다.
-            Toast.makeText(context, "알람이 울렸습니다!", Toast.LENGTH_SHORT).show();
+            // 알람이 울릴 때 수행할 작업을 여기에 구현
+            Log.d("Alarm", "Alarm! It's noon.");
             // 여기에 원하는 동작을 추가할 수 있습니다.
         }
     }
